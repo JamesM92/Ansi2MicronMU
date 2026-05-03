@@ -1,0 +1,39 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ansi2micron"
+version = "1.0.0"
+description = "Convert ANSI escape sequences to Nomadnet MicronMU markup"
+readme = "README.md"
+license = {file = "LICENSE"}
+requires-python = ">=3.8"
+authors = [
+    {name = "JamesM92"},
+]
+keywords = ["ansi", "micron", "nomadnet", "markup", "terminal", "lxmf"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+    "Operating System :: OS Independent",
+    "Topic :: Text Processing :: Markup",
+    "Topic :: Terminals",
+]
+
+[project.urls]
+Homepage = "https://github.com/JamesM92/Ansi2MicronMU"
+Repository = "https://github.com/JamesM92/Ansi2MicronMU"
+Issues = "https://github.com/JamesM92/Ansi2MicronMU/issues"
+
+[project.optional-dependencies]
+dev = ["pytest>=7"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["ansi2micron*"]

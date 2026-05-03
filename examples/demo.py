@@ -1,5 +1,5 @@
 # demo.py
-from micron_converter import MicronConverter
+from ansi2micron import MicronConverter
 
 mc = MicronConverter()
 

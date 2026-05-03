@@ -1,4 +1,4 @@
-# micron_converter.py
+# converter.py
 # -*- coding: utf-8 -*-
 """
 Converts ANSI-formatted text to Nomadnet Micro Markup (MicronMU) format.
@@ -6,6 +6,7 @@ Supports 8-colour (+ bright), 256-colour, and 24-bit ANSI sequences.
 Formatting codes are only emitted when state actually changes, minimising
 output size for bandwidth-constrained transport.
 """
+from __future__ import annotations
 
 import re
 
@@ -13,7 +14,7 @@ __all__ = ["MicronConverter"]
 
 # Represents fully plain (no active formatting).  Used as the initial
 # last_state and as the target for full-reset detection.
-_PLAIN = (None, None, False, False, False)
+_PLAIN: tuple[str | None, str | None, bool, bool, bool] = (None, None, False, False, False)
 
 # MicronMU line-start characters that trigger structural interpretation:
 #   #  → comment (entire line is dropped)
@@ -69,22 +70,22 @@ class MicronConverter:
         104: '88f', 105: 'f8f', 106: '8ff', 107: 'fff',
     }
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.reset_state()
 
-    def reset_state(self):
+    def reset_state(self) -> None:
         self.fg        = None
         self.bg        = None
         self.bold      = False
         self.italic    = False
         self.underline = False
 
-    def _snapshot(self):
+    def _snapshot(self) -> tuple[str | None, str | None, bool, bool, bool]:
         """Return current ANSI state as a comparable tuple."""
         return (self.fg, self.bg, self.bold, self.italic, self.underline)
 
     @staticmethod
-    def _to_3hex(r, g, b):
+    def _to_3hex(r: int, g: int, b: int) -> str:
         # MicronMU doubles each nibble (e.g. 'c' → #cccccc = 204), so the
         # correct quantisation target spacing is 17, not 16.  round(x/17)
         # minimises the error to the actual rendered colour.
@@ -95,7 +96,7 @@ class MicronConverter:
         )
 
     @staticmethod
-    def ansi_256_to_3hex(n):
+    def ansi_256_to_3hex(n: int | str) -> str:
         n = int(n)
 
         if n < 16:
@@ -120,7 +121,7 @@ class MicronConverter:
 
         return 'fff'
 
-    def _apply_codes(self, codes):
+    def _apply_codes(self, codes: list[str]) -> None:
         # Bare \033[m (no parameters) = full reset
         if codes == ['']:
             self.reset_state()
@@ -182,7 +183,10 @@ class MicronConverter:
             i += 1
 
     @staticmethod
-    def _generate_codes(from_state, to_state):
+    def _generate_codes(
+        from_state: tuple[str | None, str | None, bool, bool, bool],
+        to_state: tuple[str | None, str | None, bool, bool, bool],
+    ) -> str:
         """Return the MicronMU token string to transition from_state → to_state.
 
         Returns an empty string when the states are identical (no output
@@ -222,7 +226,7 @@ class MicronConverter:
         return codes
 
     @staticmethod
-    def _escape(text):
+    def _escape(text: str) -> str:
         r"""Escape inline MicronMU special characters.
 
         ``\`` is the MicronMU escape prefix; `` ` `` opens a formatting
@@ -232,7 +236,7 @@ class MicronConverter:
         return text.replace('\\', '\\\\').replace('`', '\\`')
 
     @staticmethod
-    def _escape_line_start(line):
+    def _escape_line_start(line: str) -> str:
         r"""Prefix *line* with ``\`` when its first character would trigger a
         MicronMU structural interpretation (comment, heading, depth-reset,
         or divider).  Lines that begin with a backtick (i.e. a formatting
@@ -242,8 +246,13 @@ class MicronConverter:
             return '\\' + line
         return line
 
-    def convert(self, text, triple_quotes=False, trailing_newline=True,
-                literal_mode=False):
+    def convert(
+        self,
+        text: str,
+        triple_quotes: bool = False,
+        trailing_newline: bool = True,
+        literal_mode: bool = False,
+    ) -> str:
         """Convert an ANSI-formatted string to MicronMU markup.
 
         Formatting codes are only emitted when the rendered state changes.
@@ -325,7 +334,7 @@ class MicronConverter:
     # These produce MicronMU markup strings and do not require ANSI input.
 
     @staticmethod
-    def heading(text, level=1):
+    def heading(text: str, level: int = 1) -> str:
         """Return a MicronMU heading string.
 
         Args:
@@ -336,7 +345,7 @@ class MicronConverter:
         return '>' * level + text
 
     @staticmethod
-    def divider(char=None):
+    def divider(char: str | None = None) -> str:
         """Return a MicronMU horizontal divider line.
 
         Args:
@@ -348,7 +357,7 @@ class MicronConverter:
         return '-' + char[0]
 
     @staticmethod
-    def link(label, url, fields=None):
+    def link(label: str, url: str, fields: str | None = None) -> str:
         """Return a MicronMU hyperlink.
 
         Args:
@@ -361,7 +370,7 @@ class MicronConverter:
         return f'`[{label}`{url}]'
 
     @staticmethod
-    def colored(text, fg=None, bg=None):
+    def colored(text: str, fg: str | None = None, bg: str | None = None) -> str:
         """Wrap *text* in MicronMU colour codes followed by a full reset.
 
         Args:
@@ -377,7 +386,7 @@ class MicronConverter:
         return (prefix + text + '``') if prefix else text
 
     @staticmethod
-    def aligned(text, alignment='center'):
+    def aligned(text: str, alignment: str = 'center') -> str:
         """Wrap *text* with MicronMU alignment codes.
 
         Args:
@@ -388,7 +397,7 @@ class MicronConverter:
         return f'`{code}{text}`a'
 
     @staticmethod
-    def strip_ansi(text):
+    def strip_ansi(text: str) -> str:
         """Return *text* with all ANSI escape sequences removed.
 
         Strips both SGR colour/attribute codes and non-SGR control sequences
@@ -398,7 +407,7 @@ class MicronConverter:
         text = _ANSI_BARE_ESC_RE.sub('', text)
         return MicronConverter.ANSI_REGEX.sub('', text)
 
-    def mu_print(self, text, triple_quotes=False):
+    def mu_print(self, text: str, triple_quotes: bool = False) -> None:
         """Print the MicronMU conversion of *text* to stdout."""
         print(self.convert(text, triple_quotes))
 
