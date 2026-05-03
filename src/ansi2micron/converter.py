@@ -196,10 +196,22 @@ class MicronConverter:
         if from_state == to_state:
             return ''
 
-        # Double-backtick resets fg + bg + bold + italic + underline at once.
-        # (`f only resets fg — insufficient for a full reset.)
+        # Emit individual reset codes for each active attribute.
+        # (```` `` ```` in MicronMU is a literal visible backtick, NOT a reset.)
         if to_state == _PLAIN:
-            return '``'
+            from_fg, from_bg, from_bold, from_italic, from_underline = from_state
+            codes = ''
+            if from_fg:
+                codes += '`f'
+            if from_bg:
+                codes += '`b'
+            if from_bold:
+                codes += '`!'
+            if from_italic:
+                codes += '`*'
+            if from_underline:
+                codes += '`_'
+            return codes
 
         from_fg, from_bg, from_bold, from_italic, from_underline = from_state
         to_fg,   to_bg,   to_bold,   to_italic,   to_underline   = to_state
@@ -325,7 +337,7 @@ class MicronConverter:
 
         # Close any formatting still active after the final line
         if last_state != _PLAIN and output:
-            output[-1] += '``'
+            output[-1] += MicronConverter._generate_codes(last_state, _PLAIN)
 
         result = "\n".join(output)
         return result + "\n" if trailing_newline else result
@@ -383,7 +395,8 @@ class MicronConverter:
             prefix += f'`F{fg}'
         if bg:
             prefix += f'`B{bg}'
-        return (prefix + text + '``') if prefix else text
+        suffix = ('`f' if fg else '') + ('`b' if bg else '')
+        return (prefix + text + suffix) if prefix else text
 
     @staticmethod
     def aligned(text: str, alignment: str = 'center') -> str:
