@@ -35,5 +35,4 @@ Issues = "https://github.com/JamesM92/Ansi2MicronMU/issues"
 dev = ["pytest>=7"]
 
 [tool.setuptools.packages.find]
-where = ["."]
-include = ["ansi2micron*"]
+where = ["src"]
