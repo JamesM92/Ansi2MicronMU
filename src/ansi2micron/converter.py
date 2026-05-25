@@ -1,5 +1,4 @@
 # converter.py
-# -*- coding: utf-8 -*-
 """
 Converts ANSI-formatted text to Nomadnet Micro Markup (MicronMU) format.
 Supports 8-colour (+ bright), 256-colour, and 24-bit ANSI sequences.

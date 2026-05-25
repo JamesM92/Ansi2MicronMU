@@ -32,7 +32,23 @@ Repository = "https://github.com/JamesM92/Ansi2MicronMU"
 Issues = "https://github.com/JamesM92/Ansi2MicronMU/issues"
 
 [project.optional-dependencies]
-dev = ["pytest>=7"]
+dev = [
+    "pytest>=7",
+    "ruff>=0.5",
+    "pip-audit>=2.7",
+]
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py38"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B"]
+ignore = [
+    "E501",  # line-too-long; covered by formatter / aligned tables
+    "E221",  # multiple spaces before operator (intentional alignment)
+    "E241",  # multiple spaces after comma (intentional alignment)
+]
