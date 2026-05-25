@@ -1,7 +1,7 @@
 """Tests for ansi2micron.MicronConverter."""
 import pytest
-from ansi2micron import MicronConverter
 
+from ansi2micron import MicronConverter
 
 ESC = '\x1b'
 
@@ -93,15 +93,16 @@ class TestEightColor:
         result = mc.convert(ansi(102, text='hi', reset=False), trailing_newline=False)
         assert '`B8f8' in result
 
-    def test_reset_emits_double_backtick(self, mc):
+    def test_reset_emits_fg_reset(self, mc):
+        # Only fg was set → reset emits `f (per-attribute) — not `` (literal backtick)
         result = mc.convert(ansi(31, text='hi'), trailing_newline=False)
-        assert '``' in result
+        assert result.endswith('`f')
 
     def test_fg_default_code_39(self, mc):
-        # Set fg then clear with 39 — state returns to _PLAIN → double-backtick reset
+        # Set fg then clear with 39 — state returns to _PLAIN → `f reset
         result = mc.convert(f'{ESC}[31mhi{ESC}[39m', trailing_newline=False)
         assert '`Ff00' in result  # colour was set
-        assert '``' in result     # and then fully reset
+        assert result.endswith('`f')  # and then reset
 
 
 # ── 256-colour ────────────────────────────────────────────────────────────────
@@ -180,22 +181,19 @@ class TestStyles:
         assert '`_' in result
 
     def test_bold_off_code_22(self, mc):
-        # Bold on, then off with code 22 → state returns to _PLAIN → full reset
+        # Bold on, then off with code 22 → toggled twice → `! appears twice
         result = mc.convert(f'{ESC}[1mhi{ESC}[22m', trailing_newline=False)
-        assert '`!' in result   # bold was toggled on
-        assert '``' in result   # then fully reset to plain
+        assert result.count('`!') == 2
 
     def test_italic_off_code_23(self, mc):
-        # Italic on, then off with code 23 → full reset
+        # Italic on, then off with code 23 → toggled twice
         result = mc.convert(f'{ESC}[3mhi{ESC}[23m', trailing_newline=False)
-        assert '`*' in result
-        assert '``' in result
+        assert result.count('`*') == 2
 
     def test_underline_off_code_24(self, mc):
-        # Underline on, then off with code 24 → full reset
+        # Underline on, then off with code 24 → toggled twice
         result = mc.convert(f'{ESC}[4mhi{ESC}[24m', trailing_newline=False)
-        assert '`_' in result
-        assert '``' in result
+        assert result.count('`_') == 2
 
     def test_combined_bold_color(self, mc):
         result = mc.convert(ansi(1, 31, text='hi', reset=False), trailing_newline=False)
@@ -218,15 +216,24 @@ class TestStateOptimisation:
         result = mc.convert(text, trailing_newline=False)
         assert result.count('`Ff00') == 1
 
-    def test_full_reset_to_plain_emits_double_backtick(self, mc):
+    def test_full_reset_to_plain_emits_attribute_resets(self, mc):
+        # Only fg was active → reset emits just `f
         text = f'{ESC}[31mhi{ESC}[0m'
         result = mc.convert(text, trailing_newline=False)
-        assert '``' in result
+        assert result.endswith('`f')
 
     def test_bare_sgr_reset(self, mc):
         text = f'{ESC}[31mhi{ESC}[m'
         result = mc.convert(text, trailing_newline=False)
-        assert '``' in result
+        assert result.endswith('`f')
+
+    def test_full_reset_emits_all_active_resets(self, mc):
+        # fg + bg + bold all active → reset emits `f`b`! (one per active attr)
+        text = f'{ESC}[1;31;44mhi{ESC}[0m'
+        result = mc.convert(text, trailing_newline=False)
+        assert '`f' in result
+        assert '`b' in result
+        assert result.count('`!') == 2  # toggle on, toggle off
 
 
 # ── Non-SGR sequence stripping ────────────────────────────────────────────────
@@ -252,7 +259,7 @@ class TestConvertOptions:
     def test_triple_quotes_multiline(self, mc):
         result = mc.convert('a\nb', triple_quotes=True, trailing_newline=False)
         lines = result.split('\n')
-        assert all(l.startswith('"""') and l.endswith('"""') for l in lines)
+        assert all(line.startswith('"""') and line.endswith('"""') for line in lines)
 
     def test_literal_mode_strips_ansi(self, mc):
         result = mc.convert(ansi(31, text='hi'), literal_mode=True, trailing_newline=False)
@@ -305,15 +312,15 @@ class TestUtilityHelpers:
 
     def test_colored_fg_only(self):
         result = MicronConverter.colored('hi', fg='f00')
-        assert result == '`Ff00hi``'
+        assert result == '`Ff00hi`f'
 
     def test_colored_bg_only(self):
         result = MicronConverter.colored('hi', bg='00f')
-        assert result == '`B00fhi``'
+        assert result == '`B00fhi`b'
 
     def test_colored_fg_and_bg(self):
         result = MicronConverter.colored('hi', fg='f00', bg='00f')
-        assert result == '`Ff00`B00fhi``'
+        assert result == '`Ff00`B00fhi`f`b'
 
     def test_colored_no_args_passthrough(self):
         assert MicronConverter.colored('hi') == 'hi'
